@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Privacy Policy - D Weather</title>
+</head>
+<body>
+  <h2>Privacy Policy - D Weather App</h2>
+  <p>This app does not collect, store, or share any personal user data. 
+  It only retrieves public weather information from an external API to display to the user.</p>
+  <p>Developer: Kim Gahyun</p>
+  <p>Contact: kimgahyun1230@gmail.com</p>
+</body>
+</html>
