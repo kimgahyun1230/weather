@@ -1,134 +1,177 @@
+/*
+ * ========================================
+ * 📝 메인 페이지 (app/page.jsx)
+ * ========================================
+ *
+ * 🎯 이 파일이 하는 일:
+ * - 앱의 메인 화면을 보여줍니다
+ * - "오늘의 날씨"와 "패션" 두 개의 탭을 관리합니다
+ * - 사용자의 위치를 가져와서 날씨 정보를 보여줍니다
+ *
+ * 💡 초보자를 위한 설명:
+ * - "use client": 이 파일이 브라우저에서 실행된다는 표시
+ * - useState: 데이터를 저장하고 변경할 수 있게 해주는 도구
+ * - useEffect: 페이지가 처음 열릴 때 자동으로 실행되는 코드
+ */
+
 "use client"
 
+// React에서 필요한 기능들을 가져옵니다
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+
+// UI 컴포넌트들을 가져옵니다 (미리 만들어진 디자인 요소들)
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+// 우리가 만든 컴포넌트들을 가져옵니다
 import { WeatherCard } from "@/components/weather-card"
 import { StyleSelector } from "@/components/style-selector"
 import { FashionItemsGallery } from "@/components/fashion-items-gallery"
-import { FloatingAIChat } from "@/components/floating-ai-chat"
+import { AIRecommendationCard } from "@/components/ai-recommendation-card"
 import { FashionRecommendation } from "@/components/fashion-recommendation"
 
+// 스타일 종류들을 정의합니다 (캐주얼, 포멀, 스트릿, 랜덤)
 const STYLE_TYPES = [
-  {
-    id: "casual",
-    name: "캐주얼",
-    description: "편안하고 자연스러운 일상 스타일",
-    icon: "👕",
-  },
-  {
-    id: "formal",
-    name: "포멀",
-    description: "세련되고 전문적인 정장 스타일",
-    icon: "👔",
-  },
-  {
-    id: "street",
-    name: "스트릿",
-    description: "트렌디하고 개성 있는 스타일",
-    icon: "🧥",
-  },
-  {
-    id: "random",
-    name: "랜덤",
-    description: "오늘의 기분에 맞는 랜덤 스타일",
-    icon: "🎲",
-  },
+  { id: "casual", name: "캐주얼", description: "편안하고 자연스러운 일상 스타일", icon: "👕" },
+  { id: "formal", name: "포멀", description: "세련되고 전문적인 정장 스타일", icon: "👔" },
+  { id: "street", name: "스트릿", description: "트렌디하고 개성 있는 스타일", icon: "🧥" },
+  { id: "random", name: "랜덤", description: "오늘의 기분에 맞는 랜덤 스타일", icon: "🎲" },
 ]
 
 export default function HomePage() {
-  const [weather, setWeather] = useState(null)
-  const [selectedStyle, setSelectedStyle] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [locationPermission, setLocationPermission] = useState(null)
-  const [activeTab, setActiveTab] = useState("weather")
-  const [coordinates, setCoordinates] = useState(null)
-  const [locationError, setLocationError] = useState(null)
+  const router = useRouter()
 
+  // 날씨 기능 정상 작동 확인
+
+  // ========================================
+  // 📦 데이터 저장소 (State)
+  // ========================================
+  // useState는 데이터를 저장하고 변경할 수 있게 해줍니다
+
+  const [weather, setWeather] = useState(null) // 날씨 정보를 저장
+  const [selectedStyle, setSelectedStyle] = useState("") // 선택한 스타일을 저장
+  const [loading, setLoading] = useState(false) // 로딩 중인지 저장
+  const [activeTab, setActiveTab] = useState("weather") // 현재 보고 있는 탭 저장
+  const [coordinates, setCoordinates] = useState(null) // 위치 좌표 저장
+  const [locationError, setLocationError] = useState(null) // 위치 오류 메시지 저장
+  const [isAuthenticated, setIsAuthenticated] = useState(false) // 인증 상태 저장
+
+  // ========================================
+  // 🌤️ 날씨 정보 가져오기
+  // ========================================
   const fetchWeather = async (lat, lon) => {
-    setLoading(true)
+    setLoading(true) // 로딩 시작
+
     try {
+      // URL 파라미터 만들기 (위도, 경도)
       const params = new URLSearchParams()
       if (lat && lon) {
         params.append("lat", lat.toString())
         params.append("lon", lon.toString())
-        setCoordinates({ lat, lon })
+        setCoordinates({ lat, lon }) // 좌표 저장
       }
 
       const response = await fetch(`/api/weather?${params}`)
+
+      if (!response.ok) {
+        throw new Error("날씨 정보를 가져오는데 실패했습니다")
+      }
+
       const weatherData = await response.json()
 
-      setWeather(weatherData)
-      setLoading(false)
+      setWeather(weatherData) // 받아온 날씨 정보 저장
+      setLoading(false) // 로딩 끝
     } catch (error) {
       console.error("날씨 정보를 가져오는데 실패했습니다:", error)
-      setLoading(false)
+      setLoading(false) // 로딩 끝
     }
   }
 
+  // ========================================
+  // 📍 사용자 위치 가져오기
+  // ========================================
   const requestLocation = () => {
-    setLocationError(null)
+    setLocationError(null) // 이전 오류 메시지 지우기
+
+    // 브라우저가 위치 서비스를 지원하는지 확인
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
+        // 위치를 성공적으로 가져왔을 때
         (position) => {
-          console.log("[v0] 위치 정보 획득 성공:", position.coords)
-          setLocationPermission(true)
           fetchWeather(position.coords.latitude, position.coords.longitude)
         },
+        // 위치를 가져오지 못했을 때
         (error) => {
-          let errorMessage = ""
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = "위치 정보 접근이 거부되었습니다. 서울 기준으로 날씨를 표시합니다."
-              break
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = "위치 정보를 사용할 수 없습니다. 서울 기준으로 날씨를 표시합니다."
-              break
-            case error.TIMEOUT:
-              errorMessage = "위치 정보 요청 시간이 초과되었습니다. 서울 기준으로 날씨를 표시합니다."
-              break
-            default:
-              errorMessage = "위치 정보를 가져올 수 없습니다. 서울 기준으로 날씨를 표시합니다."
-              break
-          }
-
-          setLocationPermission(false)
+          const errorMessage = "위치 정보를 가져올 수 없습니다. 서울 기준으로 날씨를 표시합니다."
           setLocationError(errorMessage)
-          fetchWeather() // 기본 위치(서울)로 날씨 정보 가져오기
+          fetchWeather() // 기본 위치(서울)로 날씨 가져오기
         },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000, // 5분간 캐시된 위치 정보 사용
-        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
       )
     } else {
-      setLocationPermission(false)
+      // 브라우저가 위치 서비스를 지원하지 않을 때
       setLocationError("브라우저에서 위치 서비스를 지원하지 않습니다. 서울 기준으로 날씨를 표시합니다.")
-      fetchWeather()
+      fetchWeather() // 기본 위치(서울)로 날씨 가져오기
     }
   }
 
+  // ========================================
+  // 🚀 페이지가 처음 열릴 때 실행
+  // ========================================
   useEffect(() => {
-    requestLocation()
-  }, [])
+    requestLocation() // 위치 정보 가져오기
+    const token = localStorage.getItem("jwt_token")
+    if (!token) {
+      router.push("/login")
+    } else {
+      setIsAuthenticated(true)
+    }
+  }, [router]) // [] 는 "페이지가 처음 열릴 때만 실행"이라는 뜻
+
+  // 로그아웃 함수
+  const handleLogout = () => {
+    localStorage.removeItem("jwt_token")
+    router.push("/login")
+  }
+
+  // ========================================
+  // 🎨 화면 그리기
+  // ========================================
+  if (!isAuthenticated) {
+    return null
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-accent/10 w-full">
-      <div className="pb-6 w-full">
-        <header className="bg-primary text-primary-foreground px-4 py-3 w-full">
-          <div className="flex items-center justify-between max-w-full">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-primary-foreground/20 rounded"></div>
-            </div>
-            <h1 className="text-lg font-bold tracking-wider">W-TO-W</h1>
-            <div className="w-6 h-6"></div>
+      <div className="w-full h-screen flex flex-col overflow-hidden">
+        <header className="bg-primary text-primary-foreground px-4 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <img src="/wtw-logo.png" alt="WTW Logo" className="h-8 brightness-0 invert" />
+            <h1 className="text-lg font-bold">Weather To Weather</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push("/history")}
+              className="px-3 py-1.5 text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors"
+            >
+              추천이력
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors"
+            >
+              로그아웃
+            </button>
           </div>
         </header>
 
-        <div className="px-3 pt-4 w-full">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4 h-10">
+        {/* 메인 콘텐츠 영역 */}
+        <div className="px-3 pt-3 w-full flex-1 overflow-hidden">
+          {/* 탭 (오늘의 날씨 / 패션) */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
+            {/* 탭 버튼들 */}
+            <TabsList className="grid w-full grid-cols-2 mb-3 h-9 flex-shrink-0">
               <TabsTrigger value="weather" className="text-xs font-medium px-2">
                 TODAY'S WEATHER
               </TabsTrigger>
@@ -137,16 +180,19 @@ export default function HomePage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="weather" className="space-y-3">
+            {/* 오늘의 날씨 탭 내용 */}
+            <TabsContent value="weather" className="space-y-2 flex-1 overflow-y-auto pb-3 scrollbar-hide">
+              {/* 위치 오류 메시지 (있을 경우에만 표시) */}
               {locationError && (
-                <Card className="p-3 bg-amber-50 border-amber-200">
+                <Card className="p-2.5 bg-amber-50 border-amber-200">
                   <div className="flex items-center gap-2 text-amber-800">
-                    <div className="text-sm">📍</div>
-                    <p className="text-xs">{locationError}</p>
+                    <div className="text-xs">📍</div>
+                    <p className="text-[10px]">{locationError}</p>
                   </div>
                 </Card>
               )}
 
+              {/* 날씨 카드 */}
               <WeatherCard
                 weather={weather}
                 loading={loading}
@@ -154,46 +200,29 @@ export default function HomePage() {
                 coordinates={coordinates}
               />
 
-              {weather && (
-                <Card className="p-3">
-                  <h3 className="text-sm font-semibold mb-3 text-center">SET YOUR TODAY'S MOOD</h3>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {STYLE_TYPES.map((style) => (
-                      <button
-                        key={style.id}
-                        className={`p-2 rounded-lg border transition-all duration-200 text-center min-h-[60px] ${
-                          selectedStyle === style.id
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-background hover:bg-accent border-border hover:border-accent"
-                        }`}
-                        onClick={() => {
-                          setSelectedStyle(style.id)
-                          setActiveTab("fashion")
-                        }}
-                      >
-                        <div className="text-base mb-1">{style.icon}</div>
-                        <div className="text-xs font-medium leading-tight">{style.name}</div>
-                      </button>
-                    ))}
-                  </div>
-                </Card>
-              )}
+              {/* AI 맞춤 추천 (큰 버전) */}
+              {weather && <AIRecommendationCard weather={weather} size="large" />}
             </TabsContent>
 
-            <TabsContent value="fashion" className="space-y-3">
+            {/* 패션 탭 내용 */}
+            <TabsContent value="fashion" className="space-y-2 flex-1 overflow-y-auto pb-3 scrollbar-hide">
+              {/* 스타일 선택 버튼들 */}
               {weather && (
                 <StyleSelector styles={STYLE_TYPES} selectedStyle={selectedStyle} onStyleSelect={setSelectedStyle} />
               )}
 
+              {/* 패션 이미지 갤러리 */}
               {weather && selectedStyle && <FashionItemsGallery selectedStyle={selectedStyle} weather={weather} />}
 
-              {weather && selectedStyle && <FashionRecommendation weather={weather} styleType={selectedStyle} />}
+              {/* 패션 아이템 추천 */}
+              {weather && selectedStyle && <FashionRecommendation weather={weather} selectedStyle={selectedStyle} />}
+
+              {/* AI 맞춤 추천 (작은 버전) */}
+              {weather && <AIRecommendationCard weather={weather} size="small" />}
             </TabsContent>
           </Tabs>
         </div>
       </div>
-
-      {weather && <FloatingAIChat weather={weather} />}
     </main>
   )
 }

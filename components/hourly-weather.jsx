@@ -50,7 +50,12 @@ export function HourlyWeather({ coordinates, trigger }) {
         lon: coordinates.lon.toString(),
       })
 
-      const response = await fetch(`/api/weather/hourly?${params}`)
+      const token = localStorage.getItem("jwt_token")
+      const response = await fetch(`/api/weather/hourly?${params}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       const data = await response.json()
       setHourlyData(data.hourly)
     } catch (error) {

@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "tw-animate-css";
+/* tw-animate-css import 제거하여 CSS 파싱 오류 해결 */
 
 @custom-variant dark (&:is(.dark *));
 
@@ -151,5 +151,15 @@
 
   .weather-gradient {
     background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  }
+
+  /* 스크롤바 숨김 유틸리티 클래스 추가 */
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 }
