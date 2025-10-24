@@ -153,13 +153,13 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push("/history")}
-              className="px-3 py-1.5 text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors"
+              className="px-3 py-1.5 text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors whitespace-nowrap"
             >
               추천이력
             </button>
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors"
+              className="px-3 py-1.5 text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors whitespace-nowrap"
             >
               로그아웃
             </button>
