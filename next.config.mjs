@@ -8,6 +8,12 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'fashionweather.s3.ap-southeast-2.amazonaws.com',
+      },
+    ],
   },
 }
 
