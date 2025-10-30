@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 // ========================================
 // 🎯 S3 폴더별 URL 매핑
@@ -21,9 +22,22 @@ const RefreshIcon = ({ className }) => (
   </svg>
 )
 
+const HeartIcon = ({ filled, className }) => (
+  <svg className={className} fill={filled ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+    />
+  </svg>
+)
+
 export function FashionItemsGallery({ selectedStyle, weather }) {
   const [images, setImages] = useState([])
   const [loading, setLoading] = useState(false)
+  const [likedImages, setLikedImages] = useState([])
+  const [selectedImage, setSelectedImage] = useState(null)
 
   // ========================================
   // 🔄 버튼 클릭 시 이미지 로드
@@ -36,6 +50,13 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
       loadImages(selectedStyle)
     }
   }, [selectedStyle])
+
+  useEffect(() => {
+    const saved = localStorage.getItem("liked_images")
+    if (saved) {
+      setLikedImages(JSON.parse(saved))
+    }
+  }, [])
 
   const loadImages = (folder) => {
     setLoading(true)
@@ -82,6 +103,14 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
     return names[styleType] || styleType
   }
 
+  const toggleLike = (imageUrl) => {
+    setLikedImages((prev) => {
+      const newLiked = prev.includes(imageUrl) ? prev.filter((url) => url !== imageUrl) : [...prev, imageUrl]
+      localStorage.setItem("liked_images", JSON.stringify(newLiked))
+      return newLiked
+    })
+  }
+
   if (loading) {
     return (
       <div className="text-center space-y-3 py-8">
@@ -112,7 +141,10 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
       <div className="grid grid-cols-3 gap-2">
         {images.map((src, index) => (
           <div key={index} className="relative group">
-            <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
+            <div
+              className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square cursor-pointer"
+              onClick={() => setSelectedImage(src)}
+            >
               <Image
                 src={src || "/placeholder.svg"}
                 alt={`${getStyleName(selectedStyle)} 스타일 ${index + 1}`}
@@ -124,6 +156,15 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
                 }}
               />
               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleLike(src)
+                }}
+                className="absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors z-10"
+              >
+                <HeartIcon filled={likedImages.includes(src)} className="w-5 h-5 text-red-500" />
+              </button>
             </div>
           </div>
         ))}
@@ -135,6 +176,26 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
           다른 추천 받기
         </Button>
       </div>
+
+      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+        <DialogContent className="max-w-3xl p-0">
+          {selectedImage && (
+            <div className="relative w-full h-[80vh]">
+              <Image src={selectedImage || "/placeholder.svg"} alt="확대 이미지" fill className="object-contain" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleLike(selectedImage)
+                }}
+                className="absolute top-4 right-4 w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors z-10"
+              >
+                <HeartIcon filled={likedImages.includes(selectedImage)} className="w-6 h-6 text-red-500" />
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+
