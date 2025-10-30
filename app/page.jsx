@@ -146,20 +146,23 @@ export default function HomePage() {
     <main className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-accent/10 w-full">
       <div className="w-full h-screen flex flex-col overflow-hidden">
         <header className="bg-primary text-primary-foreground px-4 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveTab("weather")}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
             <img src="/wtw-logo.png" alt="WTW Logo" className="h-8 brightness-0 invert" />
-            <h1 className="text-lg font-bold">Weather To Weather</h1>
-          </div>
-          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold hidden sm:block">Weather To Wear</h1>
+          </button>
+          <div className="flex gap-2">
             <button
-              onClick={() => router.push("/history")}
-              className="px-3 py-1.5 text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors whitespace-nowrap"
+              onClick={() => router.push("/mypage")}
+              className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors whitespace-nowrap"
             >
-              추천이력
+              마이페이지
             </button>
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors whitespace-nowrap"
+              className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-primary-foreground text-primary rounded-md hover:bg-primary-foreground/90 transition-colors whitespace-nowrap"
             >
               로그아웃
             </button>
@@ -200,7 +203,6 @@ export default function HomePage() {
                 coordinates={coordinates}
               />
 
-              {/* AI 맞춤 추천 (큰 버전) */}
               {weather && <AIRecommendationCard weather={weather} size="large" />}
             </TabsContent>
 
@@ -217,7 +219,6 @@ export default function HomePage() {
               {/* 패션 아이템 추천 */}
               {weather && selectedStyle && <FashionRecommendation weather={weather} selectedStyle={selectedStyle} />}
 
-              {/* AI 맞춤 추천 (작은 버전) */}
               {weather && <AIRecommendationCard weather={weather} size="small" />}
             </TabsContent>
           </Tabs>
