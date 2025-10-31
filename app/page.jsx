@@ -174,11 +174,17 @@ export default function HomePage() {
           {/* 탭 (오늘의 날씨 / 패션) */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
             {/* 탭 버튼들 */}
-            <TabsList className="grid w-full grid-cols-2 mb-3 h-9 flex-shrink-0">
-              <TabsTrigger value="weather" className="text-xs font-medium px-2">
+            <TabsList className="grid w-full grid-cols-2 mb-3 h-auto bg-muted/30 p-1.5 rounded-lg flex-shrink-0">
+              <TabsTrigger
+                value="weather"
+                className="text-base sm:text-lg font-bold py-3 px-4 rounded-md data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/50 data-[state=inactive]:hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-200"
+              >
                 TODAY'S WEATHER
               </TabsTrigger>
-              <TabsTrigger value="fashion" className="text-xs font-medium px-2">
+              <TabsTrigger
+                value="fashion"
+                className="text-base sm:text-lg font-bold py-3 px-4 rounded-md data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/50 data-[state=inactive]:hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-200"
+              >
                 FASHION
               </TabsTrigger>
             </TabsList>
@@ -208,6 +214,23 @@ export default function HomePage() {
 
             {/* 패션 탭 내용 */}
             <TabsContent value="fashion" className="space-y-2 flex-1 overflow-y-auto pb-3 scrollbar-hide">
+              {weather && (
+                <Card className="p-3 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl">{weather.icon || "☀️"}</div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{weather.location || "서울"}</p>
+                        <p className="text-xs text-muted-foreground">{weather.description || "맑음"}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-primary">{weather.temperature}°C</p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
               {/* 스타일 선택 버튼들 */}
               {weather && (
                 <StyleSelector styles={STYLE_TYPES} selectedStyle={selectedStyle} onStyleSelect={setSelectedStyle} />
