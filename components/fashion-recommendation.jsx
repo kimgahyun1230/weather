@@ -286,9 +286,8 @@ export function FashionRecommendation({ weather, selectedStyle }) {
   return (
     <div className="space-y-3">
       {/* 제목 */}
-      <div className="text-center space-y-1">
+      <div className="text-center">
         <h2 className="text-lg font-bold">{styleName} 스타일 추천</h2>
-        <p className="text-xs text-muted-foreground">현재 날씨에 알맞은 코디네이션이에요</p>
       </div>
 
       <div className="space-y-2">
