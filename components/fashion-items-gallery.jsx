@@ -133,9 +133,8 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
 
   return (
     <div className="space-y-4">
-      <div className="text-center space-y-1">
+      <div className="text-center">
         <h2 className="text-lg font-semibold">{getStyleName(selectedStyle)} 스타일</h2>
-        <p className="text-xs text-muted-foreground">{weather?.temperature}°C 추천 스타일</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -198,4 +197,3 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
     </div>
   )
 }
-
