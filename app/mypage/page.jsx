@@ -44,6 +44,12 @@ export default function MyPage() {
         },
       })
 
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
+
       if (response.ok) {
         const data = await response.json()
         setLikedImages(data.likes || [])
@@ -67,6 +73,12 @@ export default function MyPage() {
           Authorization: `Bearer ${token}`,
         },
       })
+
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
 
       if (response.ok) {
         const data = await response.json()
@@ -92,6 +104,12 @@ export default function MyPage() {
           Authorization: `Bearer ${token}`,
         },
       })
+
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
 
       if (response.ok) {
         setLikedImages((prev) => prev.filter((like) => like._id !== likeId))
@@ -126,6 +144,12 @@ export default function MyPage() {
         }),
       })
 
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
+
       if (response.ok) {
         const data = await response.json()
         setLikedImages((prev) => [data.data, ...prev])
@@ -148,6 +172,12 @@ export default function MyPage() {
           Authorization: `Bearer ${token}`,
         },
       })
+
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
 
       if (response.ok) {
         setLikedImageUrls((prev) => {
@@ -207,22 +237,24 @@ export default function MyPage() {
                 </Card>
               ) : (
                 <div className="grid grid-cols-3 gap-2">
-                  {likedImages.map((like) => (
-                    <div key={like._id} className="relative group">
-                      <div
-                        className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square cursor-pointer"
-                        onClick={() => setSelectedImage(`http://localhost:3001${like.localFilePath}`)}
-                      >
-                        <img
-                          src={`http://localhost:3001${like.localFilePath}`}
-                          alt={like.imageMetadata?.title || "좋아요 이미지"}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={(e) => {
-                            console.error("이미지 로드 실패:", `http://localhost:3001${like.localFilePath}`)
-                            e.target.src = '/placeholder.svg?height=300&width=300'
-                            e.target.style.objectFit = 'contain'
-                          }}
-                        />
+                  {likedImages.map((like) => {
+                    const imageUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${like.localFilePath}`
+                    return (
+                      <div key={like._id} className="relative group">
+                        <div
+                          className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square cursor-pointer"
+                          onClick={() => setSelectedImage(imageUrl)}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={like.imageMetadata?.title || "좋아요 이미지"}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            onError={(e) => {
+                              console.error("이미지 로드 실패:", imageUrl)
+                              e.target.src = '/placeholder.svg?height=300&width=300'
+                              e.target.style.objectFit = 'contain'
+                            }}
+                          />
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -234,7 +266,8 @@ export default function MyPage() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </TabsContent>

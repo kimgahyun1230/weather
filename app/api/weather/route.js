@@ -8,12 +8,23 @@ export async function GET(request) {
   console.log("[Frontend API] 날씨 API 요청:", { lat, lon });
 
   try {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return NextResponse.json({ error: "인증이 필요합니다" }, { status: 401 });
+    }
+
     const latitude = lat || "37.5665";
     const longitude = lon || "126.9780";
 
     // 백엔드 API 호출
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/weather?lat=${latitude}&lon=${longitude}`
+      `${process.env.NEXT_PUBLIC_API_URL}/api/weather?lat=${latitude}&lon=${longitude}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
     );
 
     if (!response.ok) {

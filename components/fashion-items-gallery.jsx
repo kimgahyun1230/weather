@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -34,6 +35,7 @@ const HeartIcon = ({ filled, className }) => (
 )
 
 export function FashionItemsGallery({ selectedStyle, weather }) {
+  const router = useRouter()
   const [images, setImages] = useState([])
   const [loading, setLoading] = useState(false)
   const [likedImages, setLikedImages] = useState({}) // {imageUrl: likeId} 형태
@@ -73,6 +75,12 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
               Authorization: `Bearer ${token}`,
             },
           })
+
+          if (response.status === 401) {
+            localStorage.removeItem("jwt_token")
+            router.push("/")
+            return null
+          }
 
           if (response.ok) {
             const data = await response.json()
@@ -171,6 +179,12 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
         }),
       })
 
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
+
       if (response.ok) {
         const data = await response.json()
         setLikedImages((prev) => ({
@@ -203,6 +217,12 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
           Authorization: `Bearer ${token}`,
         },
       })
+
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
 
       if (response.ok) {
         setLikedImages((prev) => {

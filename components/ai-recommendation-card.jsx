@@ -20,6 +20,7 @@
 
 // React에서 필요한 기능들을 가져옵니다
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 // UI 컴포넌트들을 가져옵니다
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -53,6 +54,7 @@ const HeartIcon = ({ filled, className }) => (
 // 🎨 AI 추천 카드 컴포넌트
 // ========================================
 export function AIRecommendationCard({ weather, size = "large" }) {
+  const router = useRouter()
   // ========================================
   // 📦 데이터 저장소 (State)
   // ========================================
@@ -98,6 +100,12 @@ export function AIRecommendationCard({ weather, size = "large" }) {
         }),
       })
 
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
+
       if (response.ok) {
         const data = await response.json()
         setLikedImages((prev) => ({
@@ -127,6 +135,12 @@ export function AIRecommendationCard({ weather, size = "large" }) {
           Authorization: `Bearer ${token}`,
         },
       })
+
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        return
+      }
 
       if (response.ok) {
         setLikedImages((prev) => {
@@ -180,15 +194,29 @@ export function AIRecommendationCard({ weather, size = "large" }) {
         }),
       })
 
+      if (response.status === 401) {
+        localStorage.removeItem("jwt_token")
+        router.push("/")
+        setIsLoading(false)
+        setIsLoadingImages(false)
+        return
+      }
+
       const data = await response.json() // 응답을 JSON으로 변환
       
       // DALL-E 이미지 가져오기
       let images = []
       setIsLoadingImages(true)
       try {
+        const token = localStorage.getItem("jwt_token")
         const imageResponse = await fetch(
           `/api/dalle?query=${encodeURIComponent(data.recommendation)}`,
-          { timeout: 70000 }
+          {
+            timeout: 70000,
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         )
         if (imageResponse.ok) {
           const imageData = await imageResponse.json()

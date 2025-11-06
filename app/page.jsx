@@ -72,7 +72,12 @@ export default function HomePage() {
         setCoordinates({ lat, lon }) // 좌표 저장
       }
 
-      const response = await fetch(`/api/weather?${params}`)
+      const token = localStorage.getItem("jwt_token")
+      const response = await fetch(`/api/weather?${params}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
       if (!response.ok) {
         throw new Error("날씨 정보를 가져오는데 실패했습니다")
