@@ -10,11 +10,24 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'fashionweather.s3.ap-southeast-2.amazonaws.com',
+        protocol: "https",
+        hostname: "fashionweather.s3.ap-southeast-2.amazonaws.com",
+      },
+      {
+        protocol: "https",
+        hostname: "oaidalleapiprodscus.blob.core.windows.net",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "3001",
+      },
+      {
+        protocol: "https",
+        hostname: "api.weatherfashions.com",
       },
     ],
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;

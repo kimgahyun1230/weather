@@ -36,7 +36,7 @@ const HeartIcon = ({ filled, className }) => (
 export function FashionItemsGallery({ selectedStyle, weather }) {
   const [images, setImages] = useState([])
   const [loading, setLoading] = useState(false)
-  const [likedImages, setLikedImages] = useState([])
+  const [likedImages, setLikedImages] = useState({}) // {imageUrl: likeId} 형태
   const [selectedImage, setSelectedImage] = useState(null)
 
   // ========================================
@@ -51,12 +51,54 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
     }
   }, [selectedStyle])
 
+  // ========================================
+  // ❤️ 좋아요 상태 확인
+  // ========================================
   useEffect(() => {
-    const saved = localStorage.getItem("liked_images")
-    if (saved) {
-      setLikedImages(JSON.parse(saved))
+    if (images.length > 0) {
+      checkLikesStatus()
     }
-  }, [])
+  }, [images])
+
+  const checkLikesStatus = async () => {
+    try {
+      const token = localStorage.getItem("jwt_token")
+      if (!token) return
+
+      // 각 이미지의 좋아요 상태 확인
+      const checkPromises = images.map(async (imageUrl) => {
+        try {
+          const response = await fetch(`/api/likes/check?imageUrl=${encodeURIComponent(imageUrl)}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            if (data.isLiked) {
+              return { imageUrl, likeId: data.likeId }
+            }
+          }
+        } catch (error) {
+          console.error(`좋아요 상태 확인 오류 (${imageUrl}):`, error)
+        }
+        return null
+      })
+
+      const results = await Promise.all(checkPromises)
+      const newLikedImages = {}
+      results.forEach((result) => {
+        if (result) {
+          newLikedImages[result.imageUrl] = result.likeId
+        }
+      })
+
+      setLikedImages(newLikedImages)
+    } catch (error) {
+      console.error("좋아요 상태 확인 오류:", error)
+    }
+  }
 
   const loadImages = (folder) => {
     setLoading(true)
@@ -103,12 +145,75 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
     return names[styleType] || styleType
   }
 
-  const toggleLike = (imageUrl) => {
-    setLikedImages((prev) => {
-      const newLiked = prev.includes(imageUrl) ? prev.filter((url) => url !== imageUrl) : [...prev, imageUrl]
-      localStorage.setItem("liked_images", JSON.stringify(newLiked))
-      return newLiked
-    })
+  // ========================================
+  // ❤️ 좋아요 추가 기능
+  // ========================================
+  const handleLike = async (imageUrl) => {
+    try {
+      const token = localStorage.getItem("jwt_token")
+      if (!token) {
+        alert("로그인이 필요합니다")
+        return
+      }
+
+      const styleName = getStyleName(selectedStyle)
+      const response = await fetch("/api/likes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          imageUrl: imageUrl,
+          title: `${styleName} 스타일 패션`,
+          photographer: "Fashion Weather",
+          photographerUrl: "",
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLikedImages((prev) => ({
+          ...prev,
+          [imageUrl]: data.data._id,
+        }))
+      } else {
+        const error = await response.json()
+        if (error.error !== "Image already liked") {
+          console.error("좋아요 추가 실패:", error)
+        } else {
+          // 이미 좋아요한 경우, 좋아요 상태 다시 확인
+          checkLikesStatus()
+        }
+      }
+    } catch (error) {
+      console.error("좋아요 추가 오류:", error)
+    }
+  }
+
+  // ========================================
+  // 💔 좋아요 취소 기능
+  // ========================================
+  const handleUnlike = async (imageUrl, likeId) => {
+    try {
+      const token = localStorage.getItem("jwt_token")
+      const response = await fetch(`/api/likes/${likeId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        setLikedImages((prev) => {
+          const newLikes = { ...prev }
+          delete newLikes[imageUrl]
+          return newLikes
+        })
+      }
+    } catch (error) {
+      console.error("좋아요 취소 오류:", error)
+    }
   }
 
   if (loading) {
@@ -158,11 +263,17 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  toggleLike(src)
+                  const isLiked = !!likedImages[src]
+                  const likeId = likedImages[src]
+                  if (isLiked) {
+                    handleUnlike(src, likeId)
+                  } else {
+                    handleLike(src)
+                  }
                 }}
-                className="absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors z-10"
+                className="absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white hover:scale-110 hover:shadow-xl transition-all duration-200 z-10"
               >
-                <HeartIcon filled={likedImages.includes(src)} className="w-5 h-5 text-red-500" />
+                <HeartIcon filled={!!likedImages[src]} className={`w-5 h-5 transition-all duration-200 ${likedImages[src] ? 'text-red-500 hover:scale-110' : 'text-gray-400 hover:text-red-300'}`} />
               </button>
             </div>
           </div>
@@ -184,11 +295,17 @@ export function FashionItemsGallery({ selectedStyle, weather }) {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  toggleLike(selectedImage)
+                  const isLiked = !!likedImages[selectedImage]
+                  const likeId = likedImages[selectedImage]
+                  if (isLiked) {
+                    handleUnlike(selectedImage, likeId)
+                  } else {
+                    handleLike(selectedImage)
+                  }
                 }}
-                className="absolute top-4 right-4 w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors z-10"
+                className="absolute top-4 right-4 w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:scale-110 hover:shadow-xl transition-all duration-200 z-10"
               >
-                <HeartIcon filled={likedImages.includes(selectedImage)} className="w-6 h-6 text-red-500" />
+                <HeartIcon filled={!!likedImages[selectedImage]} className={`w-6 h-6 transition-all duration-200 ${likedImages[selectedImage] ? 'text-red-500 hover:scale-110' : 'text-gray-400 hover:text-red-300'}`} />
               </button>
             </div>
           )}

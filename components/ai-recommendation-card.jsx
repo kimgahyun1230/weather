@@ -38,6 +38,17 @@ const SparklesIcon = ({ className }) => (
   </svg>
 )
 
+const HeartIcon = ({ filled, className }) => (
+  <svg className={className} fill={filled ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+    />
+  </svg>
+)
+
 // ========================================
 // 🎨 AI 추천 카드 컴포넌트
 // ========================================
@@ -51,6 +62,7 @@ export function AIRecommendationCard({ weather, size = "large" }) {
   const [isLoading, setIsLoading] = useState(false) // AI가 답변 생성 중인지 확인
   const [isLoadingImages, setIsLoadingImages] = useState(false) // 이미지 로딩 중인지 확인
   const [selectedImage, setSelectedImage] = useState(null) // 선택된 이미지 (확대 표시용)
+  const [likedImages, setLikedImages] = useState({}) // 좋아요한 이미지들 (imageUrl: likeId)
   const messagesEndRef = useRef(null) // 메시지 목록의 맨 끝을 가리키는 참조
 
   // 예시 질문들
@@ -65,6 +77,68 @@ export function AIRecommendationCard({ weather, size = "large" }) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" }) // 부드럽게 스크롤
     }
   }, [messages]) // messages가 바뀔 때마다 실행
+
+  // ========================================
+  // ❤️ 좋아요 추가 기능
+  // ========================================
+  const handleLike = async (image) => {
+    try {
+      const token = localStorage.getItem("jwt_token")
+      const response = await fetch("/api/likes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          imageUrl: image.imageUrl,
+          title: image.title,
+          photographer: image.photographer,
+          photographerUrl: image.photographerUrl,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLikedImages((prev) => ({
+          ...prev,
+          [image.imageUrl]: data.data._id,
+        }))
+      } else {
+        const error = await response.json()
+        if (error.error !== "Image already liked") {
+          console.error("좋아요 추가 실패:", error)
+        }
+      }
+    } catch (error) {
+      console.error("좋아요 추가 오류:", error)
+    }
+  }
+
+  // ========================================
+  // 💔 좋아요 취소 기능
+  // ========================================
+  const handleUnlike = async (imageUrl, likeId) => {
+    try {
+      const token = localStorage.getItem("jwt_token")
+      const response = await fetch(`/api/likes/${likeId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        setLikedImages((prev) => {
+          const newLikes = { ...prev }
+          delete newLikes[imageUrl]
+          return newLikes
+        })
+      }
+    } catch (error) {
+      console.error("좋아요 취소 오류:", error)
+    }
+  }
 
   // ========================================
   // 💬 예시 질문 클릭 처리
@@ -108,17 +182,17 @@ export function AIRecommendationCard({ weather, size = "large" }) {
 
       const data = await response.json() // 응답을 JSON으로 변환
       
-      // Unsplash 이미지 가져오기
+      // DALL-E 이미지 가져오기
       let images = []
       setIsLoadingImages(true)
       try {
         const imageResponse = await fetch(
-          `/api/unsplash?query=${encodeURIComponent(data.recommendation)}&count=4`
+          `/api/dalle?query=${encodeURIComponent(data.recommendation)}`,
+          { timeout: 70000 }
         )
         if (imageResponse.ok) {
           const imageData = await imageResponse.json()
           images = imageData || []
-          console.log("[AI 추천] Unsplash 이미지 로드 성공:", images.length, "개")
           
           // 이미지를 백엔드에 저장 (히스토리 업데이트)
           if (images.length > 0 && data.historyId) {
@@ -132,12 +206,14 @@ export function AIRecommendationCard({ weather, size = "large" }) {
                 body: JSON.stringify({ images }),
               })
             } catch (updateError) {
-              console.error("[AI 추천] 히스토리 업데이트 오류:", updateError)
+              console.error("히스토리 업데이트 오류:", updateError)
             }
           }
+        } else {
+          console.error("이미지 로드 실패:", imageResponse.status)
         }
       } catch (error) {
-        console.error("[AI 추천] 이미지 로드 오류:", error)
+        console.error("이미지 로드 오류:", error.message)
       } finally {
         setIsLoadingImages(false)
       }
@@ -261,20 +337,39 @@ export function AIRecommendationCard({ weather, size = "large" }) {
                   {/* AI 메시지에 이미지가 있으면 표시 */}
                   {msg.role === "assistant" && msg.images && msg.images.length > 0 && (
                     <div className="grid grid-cols-2 gap-2">
-                      {msg.images.map((image, imgIdx) => (
-                        <div key={imgIdx} className="relative aspect-[3/4] overflow-hidden rounded-md">
-                          <img
-                            src={image.smallImageUrl || image.imageUrl}
-                            alt={image.title || "패션 이미지"}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
-                            onClick={() => setSelectedImage(image)}
-                            onError={(e) => {
-                              console.error("이미지 로드 실패:", image.imageUrl)
-                              e.target.style.display = 'none'
-                            }}
-                          />
-                        </div>
-                      ))}
+                      {msg.images.map((image, imgIdx) => {
+                        const isLiked = !!likedImages[image.imageUrl]
+                        const likeId = likedImages[image.imageUrl]
+                        
+                        return (
+                          <div key={imgIdx} className="relative aspect-[3/4] overflow-hidden rounded-md bg-gray-100">
+                            <img
+                              src={image.smallImageUrl || image.imageUrl}
+                              alt={image.title || "패션 이미지"}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                              onClick={() => setSelectedImage(image)}
+                              onError={(e) => {
+                                e.target.src = '/placeholder.svg?height=400&width=300'
+                                e.target.style.objectFit = 'contain'
+                              }}
+                            />
+                            {/* 하트 버튼 */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (isLiked) {
+                                  handleUnlike(image.imageUrl, likeId)
+                                } else {
+                                  handleLike(image)
+                                }
+                              }}
+                              className="absolute bottom-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white hover:scale-110 hover:shadow-xl transition-all duration-200 z-10"
+                            >
+                              <HeartIcon filled={isLiked} className={`w-5 h-5 transition-all duration-200 ${isLiked ? 'text-red-500 hover:scale-110' : 'text-gray-400 hover:text-red-300'}`} />
+                            </button>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                   

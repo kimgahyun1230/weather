@@ -23,6 +23,7 @@ export default function MyPage() {
   const [likedImages, setLikedImages] = useState([])
   const [recommendations, setRecommendations] = useState([])
   const [selectedImage, setSelectedImage] = useState(null)
+  const [likedImageUrls, setLikedImageUrls] = useState({}) // 추천 이력의 좋아요 상태
 
   useEffect(() => {
     const token = localStorage.getItem("jwt_token")
@@ -31,28 +32,133 @@ export default function MyPage() {
       return
     }
 
-    // 좋아요한 이미지 불러오기
-    const liked = localStorage.getItem("liked_images")
-    if (liked) {
-      setLikedImages(JSON.parse(liked))
-    }
-
-    // AI 추천 이력 불러오기
-    const history = localStorage.getItem("ai_recommendations")
-    if (history) {
-      setRecommendations(JSON.parse(history))
-    }
+    fetchLikedImages(token)
+    fetchRecommendations(token)
   }, [router])
+
+  const fetchLikedImages = async (token) => {
+    try {
+      const response = await fetch("/api/likes", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLikedImages(data.likes || [])
+        
+        // 좋아요한 이미지 URL 맵 생성
+        const urlMap = {}
+        data.likes?.forEach(like => {
+          urlMap[like.originalImageUrl] = like._id
+        })
+        setLikedImageUrls(urlMap)
+      }
+    } catch (error) {
+      console.error("좋아요 목록 로드 오류:", error)
+    }
+  }
+
+  const fetchRecommendations = async (token) => {
+    try {
+      const response = await fetch("/api/fashion/history", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const histories = data.histories || []
+        setRecommendations(histories)
+      }
+    } catch (error) {
+      console.error("추천 이력 로드 오류:", error)
+    }
+  }
 
   const handleLogout = () => {
     localStorage.removeItem("jwt_token")
     router.push("/login")
   }
 
-  const removeLike = (imageUrl) => {
-    const newLiked = likedImages.filter((url) => url !== imageUrl)
-    setLikedImages(newLiked)
-    localStorage.setItem("liked_images", JSON.stringify(newLiked))
+  const removeLike = async (likeId) => {
+    try {
+      const token = localStorage.getItem("jwt_token")
+      const response = await fetch(`/api/likes/${likeId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        setLikedImages((prev) => prev.filter((like) => like._id !== likeId))
+        setLikedImageUrls((prev) => {
+          const newMap = { ...prev }
+          const like = likedImages.find(l => l._id === likeId)
+          if (like) {
+            delete newMap[like.originalImageUrl]
+          }
+          return newMap
+        })
+      }
+    } catch (error) {
+      console.error("좋아요 삭제 오류:", error)
+    }
+  }
+
+  const handleLike = async (image) => {
+    try {
+      const token = localStorage.getItem("jwt_token")
+      const response = await fetch("/api/likes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          imageUrl: image.imageUrl,
+          title: image.title,
+          photographer: image.photographer,
+          photographerUrl: image.photographerUrl,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setLikedImages((prev) => [data.data, ...prev])
+        setLikedImageUrls((prev) => ({
+          ...prev,
+          [image.imageUrl]: data.data._id,
+        }))
+      }
+    } catch (error) {
+      console.error("좋아요 추가 오류:", error)
+    }
+  }
+
+  const handleUnlike = async (imageUrl, likeId) => {
+    try {
+      const token = localStorage.getItem("jwt_token")
+      const response = await fetch(`/api/likes/${likeId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        setLikedImageUrls((prev) => {
+          const newMap = { ...prev }
+          delete newMap[imageUrl]
+          return newMap
+        })
+      }
+    } catch (error) {
+      console.error("좋아요 취소 오류:", error)
+    }
   }
 
   return (
@@ -101,27 +207,30 @@ export default function MyPage() {
                 </Card>
               ) : (
                 <div className="grid grid-cols-3 gap-2">
-                  {likedImages.map((src, index) => (
-                    <div key={index} className="relative group">
+                  {likedImages.map((like) => (
+                    <div key={like._id} className="relative group">
                       <div
                         className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square cursor-pointer"
-                        onClick={() => setSelectedImage(src)}
+                        onClick={() => setSelectedImage(`http://localhost:3001${like.localFilePath}`)}
                       >
-                        <Image
-                          src={src || "/placeholder.svg"}
-                          alt={`좋아요 이미지 ${index + 1}`}
-                          fill
-                          className="object-cover transition-transform duration-300 group-hover:scale-105"
-                          sizes="(max-width: 768px) 33vw, 200px"
+                        <img
+                          src={`http://localhost:3001${like.localFilePath}`}
+                          alt={like.imageMetadata?.title || "좋아요 이미지"}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          onError={(e) => {
+                            console.error("이미지 로드 실패:", `http://localhost:3001${like.localFilePath}`)
+                            e.target.src = '/placeholder.svg?height=300&width=300'
+                            e.target.style.objectFit = 'contain'
+                          }}
                         />
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            removeLike(src)
+                            removeLike(like._id)
                           }}
-                          className="absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white transition-colors z-10"
+                          className="absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white hover:scale-110 hover:shadow-xl transition-all duration-200 z-10"
                         >
-                          <HeartIcon filled={true} className="w-5 h-5 text-red-500" />
+                          <HeartIcon filled={true} className="w-5 h-5 text-red-500 transition-all duration-200 hover:scale-110" />
                         </button>
                       </div>
                     </div>
@@ -137,17 +246,67 @@ export default function MyPage() {
                   <p className="text-muted-foreground">아직 AI 추천 이력이 없습니다</p>
                 </Card>
               ) : (
-                recommendations.map((rec, index) => (
-                  <Card key={index} className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg">✨</span>
+                recommendations.map((rec) => (
+                  <Card key={rec._id} className="p-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-lg">✨</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground mb-1">
+                            {new Date(rec.createdAt).toLocaleDateString("ko-KR")}
+                          </p>
+                          <p className="text-sm font-medium mb-2">{rec.userMessage}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{rec.weather?.temperature}°C</span>
+                            <span>·</span>
+                            <span>{rec.weather?.condition}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-muted-foreground mb-1">{rec.date}</p>
-                        <p className="text-sm font-medium mb-2">{rec.question}</p>
-                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">{rec.answer}</p>
-                      </div>
+                      {rec.images && rec.images.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 ml-13">
+                          {rec.images.map((image, idx) => {
+                            const isLiked = !!likedImageUrls[image.imageUrl]
+                            const likeId = likedImageUrls[image.imageUrl]
+
+                            return (
+                              <div
+                                key={idx}
+                                className="relative aspect-square overflow-hidden rounded-md cursor-pointer hover:opacity-80 transition-opacity bg-gray-100"
+                              >
+                                <Image
+                                  src={image.smallImageUrl || image.imageUrl}
+                                  alt={image.title || "패션 이미지"}
+                                  fill
+                                  className="object-cover"
+                                  sizes="(max-width: 768px) 25vw, 150px"
+                                  onClick={() => setSelectedImage(image.imageUrl)}
+                                  onError={(e) => {
+                                    e.target.src = '/placeholder.svg?height=300&width=300'
+                                    e.target.style.objectFit = 'contain'
+                                  }}
+                                />
+                                {/* 하트 버튼 */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (isLiked) {
+                                      handleUnlike(image.imageUrl, likeId)
+                                    } else {
+                                      handleLike(image)
+                                    }
+                                  }}
+                                  className="absolute bottom-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md hover:bg-white hover:scale-110 hover:shadow-xl transition-all duration-200 z-10"
+                                >
+                                  <HeartIcon filled={isLiked} className={`w-5 h-5 transition-all duration-200 ${isLiked ? 'text-red-500 hover:scale-110' : 'text-gray-400 hover:text-red-300'}`} />
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   </Card>
                 ))
@@ -160,8 +319,12 @@ export default function MyPage() {
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
         <DialogContent className="max-w-3xl p-0">
           {selectedImage && (
-            <div className="relative w-full h-[80vh]">
-              <Image src={selectedImage || "/placeholder.svg"} alt="확대 이미지" fill className="object-contain" />
+            <div className="relative w-full h-[80vh] flex items-center justify-center">
+              <img 
+                src={typeof selectedImage === 'string' ? selectedImage : (selectedImage.imageUrl || "/placeholder.svg")} 
+                alt="확대 이미지" 
+                className="max-w-full max-h-full object-contain" 
+              />
             </div>
           )}
         </DialogContent>
